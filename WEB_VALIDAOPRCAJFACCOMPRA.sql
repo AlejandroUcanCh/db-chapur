@@ -15,7 +15,22 @@ create or replace PROCEDURE WEB_VALIDAOPRCAJFACCOMPRA (
     FROM VENTAS.PVIDEOPR 
     WHERE VENTAS.PVIDEOPR.CVETDA = P_TIENDA 
       AND OPRCAJ = P_OPERACION;
-       
+      
+  CURSOR C_VALIDACION (P_OPERACION INTEGER, P_TIENDA INTEGER) IS
+    SELECT NVL((SELECT 1
+                FROM ventas.pvideopr a, ventas.pvrenpag b, ventas.pvartics c 
+                WHERE a.cvetda = P_TIENDA 
+                  AND a.oprcaj = P_OPERACION
+                  AND a.status = 0 
+                  AND a.tipopr = 1 
+                  AND c.clase = 132 
+                  AND c.descripcion LIKE '%MOTOCICLETA%'
+                  AND b.cvetda = a.cvetda 
+                  AND b.oprcaj = a.oprcaj 
+                  AND c.numart = b.numart 
+                  AND ROWNUM = 1), 0)
+    FROM ventas.pvideopr;
+      
   R_CONSULTA C_CONSULTA%ROWTYPE;
 
   CURSOR C_VALIDA_BILLETERA(P_OPERACION INTEGER,P_TIENDA INTEGER) IS
@@ -29,6 +44,7 @@ create or replace PROCEDURE WEB_VALIDAOPRCAJFACCOMPRA (
 
   DIFERENCIA DOUBLE PRECISION;
   NOVALIDO INTEGER;
+  VALIDACION INTEGER;
     
 BEGIN
 
@@ -82,6 +98,15 @@ BEGIN
           rRET.MENSAJE := 'LA OPERACION PUEDE SER FACTURADA';
         END IF;
       END IF;
+    END IF;
+
+    OPEN C_VALIDACION(OPRCAJ_, TIENDA_);
+      FETCH C_VALIDACION INTO VALIDACION;
+    CLOSE C_VALIDACION;
+    
+    IF VALIDACION = 1 THEN
+      rRET.EXITO := -4;
+      rRET.MENSAJE := 'LA OPERACION CONTIENE UN VEHICULO AUTOMOTOR, DEBE SER FACTURADA EN EL MODULO DE SERVICIO AL CLIENTE POR DOCUMENTACION LEGAL REQUERIDA';
     END IF;
 
   CLOSE C_CONSULTA;
